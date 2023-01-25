@@ -31,6 +31,10 @@ in pkgs.mkShell {
     pkgs.python310Packages.mariadb
     pkgs.python310Packages.mysqlclient
     pkgs.python310Packages.python-dotenv
+    pkgs.python310Packages.flask-serialize
+    pkgs.python310Packages.flask-jwt-extended
+    pkgs.python310Packages.flask-cors
+    pkgs.python310Packages.openpyxl
   ];
   shellHook = ''
     export PIP_PREFIX=$(pwd)/_build/pip_packages
