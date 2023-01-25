@@ -62,9 +62,12 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token)
 
-
 @app.route("/", methods=["GET"])
-def home():
+def home(): 
+    return render_template('landing.html', data=data)
+
+@app.route("/dataset", methods=["GET"])
+def dataset():
     SITE_ROOT = os.path.realpath(os.path.dirname(__file__))
     json_url = os.path.join(SITE_ROOT, "", "dataset.json")
     data = json.load(open(json_url))
