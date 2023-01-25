@@ -64,7 +64,7 @@ def login():
 
 @app.route("/", methods=["GET"])
 def home(): 
-    return render_template('landing.html', data=data)
+    return render_template('landing.html')
 
 @app.route("/dataset", methods=["GET"])
 def dataset():
