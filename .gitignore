@@ -1,0 +1,10 @@
+__pycache__
+venv
+env 
+_build
+.direnv
+
+# Devenv
+.devenv*
+devenv.local.nix
+

@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prediksi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.development.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+    ></script>
+    <div id="output"></div>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  </head>
+  <body class="h-screen bg-gradient-to-b from-slate-900 to-blue-500">
+    <div id="root"></div>
+    <iframe
+      id="ifmcontentstoprint"
+      style="height: 0px; width: 0px; position: absolute"
+    ></iframe>
+    <script type="text/babel">
+      const TOKEN_KEY = "access_token";
+      const REFRESH_TOKEN_KEY = "refresh_token";
+
+      const TokenService = {
+        getToken() {
+          return localStorage.getItem(TOKEN_KEY);
+        },
+
+        saveToken(accessToken) {
+          localStorage.setItem(TOKEN_KEY, accessToken);
+        },
+
+        removeToken() {
+          localStorage.removeItem(TOKEN_KEY);
+        },
+
+        getRefreshToken() {
+          return localStorage.getItem(REFRESH_TOKEN_KEY);
+        },
+
+        saveRefreshToken(refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        },
+
+        removeRefreshToken() {
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+        },
+      };
+
+      const ApiService = {
+        _401interceptor: null || 0,
+
+        init(baseURL) {
+          axios.defaults.baseURL = baseURL;
+        },
+
+        setHeader() {
+          axios.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${TokenService.getToken()}`;
+        },
+
+        removeHeader() {
+          axios.defaults.headers.common = {};
+        },
+
+        customRequest(data) {
+          return axios(data);
+        },
+
+        mount401Interceptor() {
+          this._401interceptor = axios.interceptors.response.use(
+            (response) => {
+              return response;
+            },
+            async (error) => {
+              if (
+                error.request.status === 401 ||
+                error.request.status === 422
+              ) {
+                if (error.config.url.includes("auth/login")) {
+                  AuthService.Logout();
+                  throw error;
+                } else {
+                  try {
+                    AuthService.Logout();
+                  } catch (e) {
+                    AuthService.Logout();
+                    throw error;
+                  }
+                }
+              }
+              throw error;
+            }
+          );
+        },
+
+        unmount401Interceptor() {
+          axios.interceptors.response.eject(this._401interceptor);
+        },
+      };
+
+      const AuthService = {
+        Login: async (payload) => {
+          const { username, password } = payload;
+          const requestData = {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            data: {
+              username,
+              password,
+            },
+            url: "/login",
+          };
+          try {
+            const res = await ApiService.customRequest(requestData);
+            TokenService.saveToken(res.data.access_token);
+            ApiService.setHeader();
+            window.location.reload();
+          } catch (error) {
+            throw error;
+          }
+        },
+
+        Logout: () => {
+          ApiService.removeHeader();
+          TokenService.removeToken();
+          TokenService.removeRefreshToken();
+          window.location.reload();
+        },
+      };
+
+      const PredictionService = {
+        GetPrediction: async () => {
+          const requestData = {
+            method: "get",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            url: "/items",
+          };
+          try {
+            const res = await ApiService.customRequest(requestData);
+            ApiService.setHeader();
+            return res.data;
+          } catch (error) {
+            console.log(error);
+          }
+        },
+
+        GetPredictionById: async (prediction_id) => {
+          const requestData = {
+            method: "get",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            url: `item/${prediction_id}`,
+          };
+          try {
+            const res = await ApiService.customRequest(requestData);
+            ApiService.setHeader();
+            return res.data;
+          } catch (error) {
+            console.log(error);
+          }
+        },
+
+        DeletePredictionById: async (prediction_id) => {
+          const requestData = {
+            method: "delete",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            url: `item/${prediction_id}`,
+          };
+          try {
+            const res = await ApiService.customRequest(requestData);
+            ApiService.setHeader();
+            return res.data;
+          } catch (error) {
+            console.log(error);
+          }
+        },
+
+        CreatePrediction: async (payload) => {
+          const requestData = {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            data: payload,
+            url: "predict",
+          };
+          try {
+            const res = await ApiService.customRequest(requestData);
+            ApiService.setHeader();
+            return res.data;
+          } catch (error) {
+            console.log(error);
+          }
+        },
+
+        Logout: () => {
+          ApiService.removeHeader();
+          TokenService.removeToken();
+          TokenService.removeRefreshToken();
+          window.location.reload();
+        },
+      };
+
+      const Modal = ({
+        isModalShow,
+        setModalShow,
+        setRepopulate,
+        predictionDetailData,
+        isEdit,
+        isView,
+      }) => {
+        const [predictionData, setPredictionData] = React.useState({
+          nama: "",
+          jenis_kelamin: "L",
+          tempat_lahir: "",
+          pendidikan: "",
+          no_hp: "",
+          jabatan: "",
+          penempatan: "",
+          lama_kerja: "",
+          kehadiran: "",
+          sikap: "",
+          tanggung_jawab: "",
+          pencapaian: "",
+          keputusan: "",
+        });
+
+        React.useEffect(() => {
+          if (isEdit) {
+            setPredictionData(predictionDetailData);
+          }
+        }, []);
+
+        return (
+          <>
+            {isModalShow && (
+              <div
+                className="relative z-10 w-full p-8"
+                aria-labelledby="modal-title"
+                role="dialog"
+                aria-modal="true"
+              >
+                <div className="fixed w-full inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                <div className="fixed inset-0 w-full z-10 overflow-y-auto">
+                  <div className="flex min-h-full items-end w-auto justify-center p-4 text-center sm:items-center sm:p-0">
+                    <form
+                      onSubmit={(e) => {
+                        try {
+                          e.preventDefault();
+                          PredictionService.CreatePrediction(predictionData);
+                          Swal.fire({
+                            title: "Berhasil!",
+                            text: "Do you want to continue",
+                            icon: "success",
+                            confirmButtonText: "Ok",
+                          });
+                          setRepopulate((prev) => !prev);
+                          setModalShow(false);
+                          setPredictionData({});
+                        } catch (error) {
+                          console.log(error);
+                        }
+                      }}
+                      className="transform w-[100vw] m-12 p-8 overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all "
+                    >
+                      <div className="bg-white w-full px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div className="sm:flex w-full sm:items-start">
+                          <div className="mt-3 w-full text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3
+                              className="text-lg font-medium leading-6 text-blue-900"
+                              id="modal-title"
+                            >
+                              {isEdit
+                                ? "Data Prediksi Karyawan"
+                                : "Tambah Data Prediksi Karyawan"}
+                            </h3>
+                            <div className="mt-8 w-full">
+                              {isEdit && (
+                                <div
+                                  id="divcontents"
+                                  className="flex flex-col gap-y-4"
+                                >
+                                  <h1 className="font-bold text-2xl">
+                                    KEPUTUSAN HASIL PREDIKSI
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    Nama : {predictionDetailData.nama}
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    Jabatan : {predictionDetailData.jabatan}
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    Penempatan :{" "}
+                                    {predictionDetailData.penempatan}
+                                  </h1>
+
+                                  <h1 className="text-2xl font-bold">
+                                    Dengan ketentuan Nilai :
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    Kehadiran : {predictionDetailData.kehadiran}
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    Sikap : {predictionDetailData.sikap}
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    {" "}
+                                    Tanggung Jawab :{" "}
+                                    {predictionDetailData.tanggung_jawab}
+                                  </h1>
+                                  <h1 className="text-xl font-medium">
+                                    {" "}
+                                    Pencapaian :{" "}
+                                    {predictionDetailData.pencapaian}
+                                  </h1>
+                                  <h1 className="text-xl font-bold uppercase">
+                                    {" "}
+                                    Hasil Prediksi :{" "}
+                                    {predictionDetailData.keputusan}
+                                  </h1>
+                                </div>
+                              )}
+
+                              {!isView && (
+                                <div className="w-full flex gap-x-6">
+                                  <div className="flex flex-col gap-y-4 w-full">
+                                    <div className="mb-6 w-full">
+                                      <div>
+                                        <label
+                                          htmlFor="nama"
+                                          className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                        >
+                                          Nama
+                                        </label>
+                                        <input
+                                          onChange={(e) =>
+                                            setPredictionData((prev) => ({
+                                              ...prev,
+                                              nama: e.target.value,
+                                            }))
+                                          }
+                                          value={predictionData.nama}
+                                          type="text"
+                                          name="nama"
+                                          id="nama"
+                                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                          placeholder="Masukan Nama Anda"
+                                          required
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="jenis_kelamin"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Jenis Kelamin
+                                      </label>
+                                      <select
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            jenis_kelamin: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.jenis_kelamin}
+                                        type="text"
+                                        name="jenis kelamin"
+                                        id="jenis_kelamin"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Jenis Kelamin Anda"
+                                        required
+                                      >
+                                        <option value="L">Laki-laki</option>
+                                        <option value="P">Perempuan</option>
+                                      </select>
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="tempat_lahir"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Tempat lahir
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            tempat_lahir: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.tempat_lahir}
+                                        type="text"
+                                        id="tempat_lahir"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Jenis Tempat_lahir"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="pendidikan"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Pendidikan
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            pendidikan: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.pendidikan}
+                                        type="text"
+                                        id="pendidikan"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Pendidikan Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="no_hp"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        No Hp
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            no_hp: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.no_hp}
+                                        type="number"
+                                        id="no_hp"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan No_hp Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="jabatan"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Jabatan
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            jabatan: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.jabatan}
+                                        type="text"
+                                        id="jabatan"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Jabatan Anda"
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col gap-y-4 w-full">
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="penempatan"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Penempatan
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            penempatan: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.penempatan}
+                                        type="text"
+                                        id="penempatan"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Penempatan Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="lama_kerja"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Lama kerja
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            lama_kerja: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.lama_kerja}
+                                        type="text"
+                                        id="lama_kerja"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Lama_kerja Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="kehadiran"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Kehadiran
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            kehadiran: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.kehadiran}
+                                        type="number"
+                                        id="kehadiran"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Nilai Kehadiran Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="sikap"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Sikap
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            sikap: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.sikap}
+                                        type="number"
+                                        id="sikap"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Nilai Sikap Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="tanggung_jawab"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Tanggung jawab
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            tanggung_jawab: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.tanggung_jawab}
+                                        type="number"
+                                        id="tanggung_jawab"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Nilai Tanggung_jawab Anda"
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="mb-6">
+                                      <label
+                                        htmlFor="pencapaian"
+                                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                                      >
+                                        Pencapaian
+                                      </label>
+                                      <input
+                                        onChange={(e) =>
+                                          setPredictionData((prev) => ({
+                                            ...prev,
+                                            pencapaian: e.target.value,
+                                          }))
+                                        }
+                                        value={predictionData.pencapaian}
+                                        type="number"
+                                        text="pencapaian"
+                                        id="pencapaian"
+                                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                        placeholder="Masukan Nilai Pencapaian Anda"
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        {isEdit ? (
+                          <button
+                            onClick={() => {
+                              const content =
+                                document.getElementById("divcontents");
+                              const pri =
+                                document.getElementById(
+                                  "ifmcontentstoprint"
+                                ).contentWindow;
+                              pri.document.open();
+                              pri.document.write(content.innerHTML);
+                              pri.document.close();
+                              pri.focus();
+                              pri.print();
+                            }}
+                            type="button"
+                            className="inline-flex w-full justify-center rounded-md border border-transparent bg-green-400 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                          >
+                            {isEdit ? "Print Data" : "Tambah Prediksi Data"}
+                          </button>
+                        ) : (
+                          <button
+                            type="submit"
+                            className="inline-flex w-full justify-center rounded-md border border-transparent bg-green-400 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                          >
+                            {isEdit ? "Print Data" : "Tambah Prediksi Data"}
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setModalShow(!isModalShow)}
+                          type="button"
+                          className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      };
+
+      const Table = () => {
+        const [getData, setData] = React.useState([]);
+        const [getModal, setModal] = React.useState(false);
+        const [isEdit, setIsEdit] = React.useState(false);
+        const [isView, setIsView] = React.useState(false);
+        const [repopulateData, setRepopulate] = React.useState(false);
+        const [predictionDetailData, setPredictionDetailData] = React.useState({
+          nama: "",
+          jenis_kelamin: "",
+          tempat_lahir: "",
+          pendidikan: "",
+          no_hp: "",
+          jabatan: "",
+          penempatan: "",
+          lama_kerja: "",
+          kehadiran: "",
+          sikap: "",
+          tanggung_jawab: "",
+          pencapaian: "",
+          keputusan: "",
+        });
+
+        const fetchData = async () => {
+          const res = await PredictionService.GetPrediction();
+          await PredictionService.GetPredictionById(23);
+          setData(await res);
+        };
+
+        const fetchDetailData = async (id) => {
+          const res = await PredictionService.GetPredictionById(id);
+          setPredictionDetailData(await res);
+        };
+
+        React.useEffect(() => {
+          fetchData();
+        }, [repopulateData]);
+
+        return (
+          <>
+            <div className="flex gap-x-4 py-4">
+              <button
+                onClick={() => {
+                  setModal(!getModal);
+                  setIsEdit(false);
+                }}
+                className="bg-blue-400 text-white rounded-lg w-[200px] h-auto p-2"
+              >
+                Tambah Data +
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    fetchData();
+                    Swal.fire({
+                      title: "Berhasil!",
+                      text: "Berhasil Refresh Data!",
+                      icon: "success",
+                      confirmButtonText: "Ok",
+                    });
+                  } catch (error) {
+                    Swal.fire({
+                      title: "Gagal!",
+                      text: "Gagal Fetch Data! karena " + error,
+                      icon: "error",
+                      confirmButtonText: "Ok",
+                    });
+                  }
+                }}
+                className="bg-green-400 p-2 w-[200px] text-white rounded-lg"
+              >
+                Refresh
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    Swal.fire({
+                      title: "Anda yakin akan logout?",
+                      text: "Keluar dari halaman ini",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonColor: "#3085d6",
+                      cancelButtonColor: "#d33",
+                      confirmButtonText: "Ya",
+                    }).then((result) => {
+                      if (result.isConfirmed) {
+                        AuthService.Logout();
+                        Swal.fire(
+                          "Berhasil Logout!",
+                          "Berhasil Keluar Dari halaman prediksi",
+                          "success"
+                        );
+                      }
+                    });
+                  } catch (error) {
+                    Swal.fire({
+                      title: "Gagal Logout!",
+                      text: "Gagal Lgout! karena " + error,
+                      icon: "error",
+                      confirmButtonText: "Ok",
+                    });
+                  }
+                }}
+                className="bg-yellow-500 p-2 w-[200px] text-white rounded-lg"
+              >
+                Logout
+              </button>
+              <button
+                onClick={() => {
+                  window.location.href = "/dataset";
+                }}
+                className="bg-cyan-500 p-2 w-[200px] text-white rounded-lg"
+              >
+                Data Karyawan
+              </button>
+            </div>
+            <Modal
+              predictionDetailData={predictionDetailData}
+              isEdit={isEdit}
+              isView={isView}
+              setRepopulate={setRepopulate}
+              setModalShow={setModal}
+              isModalShow={getModal}
+            />
+            <table className="w-full relative text-sm text-left text-gray-500 dark:text-gray-400 overflow-visible">
+              <thead className="text-xs w-full text-gray-700 uppercase bg-gray-300 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                  <th className="px-6 py-3 w-full overflow-x-visible">Nama</th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Jenis Kelamin
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Tempat Lahir
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Pendidikan
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">No Hp</th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Jabatan
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Penempatan
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Lama Kerja
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Kehadiran
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">Sikap</th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Tanggung Jawab
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Pencapaian
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">
+                    Keputusan
+                  </th>
+                  <th className="px-6 py-3 w-full overflow-x-visible">Aksi</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {getData.map((x, i) => (
+                  <tr
+                    key={i}
+                    className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
+                  >
+                    <th
+                      scope="row"
+                      className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
+                    >
+                      {x.nama}
+                    </th>
+                    <td className="px-6 py-4">
+                      {x.jenis_kelamin === "P" ? "Perempuan" : "Laki Laki"}
+                    </td>
+                    <td className="px-6 py-4">{x.tempat_lahir}</td>
+                    <td className="px-6 py-4">{x.pendidikan}</td>
+                    <td className="px-6 py-4">{x.no_hp}</td>
+                    <td className="px-6 py-4">{x.jabatan}</td>
+                    <td className="px-6 py-4">{x.penempatan}</td>
+                    <td className="px-6 py-4">{x.lama_kerja}</td>
+                    <td className="px-6 py-4">{x.kehadiran}</td>
+                    <td className="px-6 py-4">{x.sikap}</td>
+                    <td className="px-6 py-4">{x.tanggung_jawab}</td>
+                    <td className="px-6 py-4">{x.pencapaian}</td>
+                    <td className="px-6 py-4">{x.keputusan}</td>
+                    <td className="px-6 py-4 gap-x-4">
+                      <button
+                        onClick={() => {
+                          setModal(!getModal);
+                          setIsView(true);
+                          fetchDetailData(x.id);
+                        }}
+                        className="text-yellow-500 font-medium text-1xl"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => {
+                          setModal(!getModal);
+                          setIsEdit(true);
+                          fetchDetailData(x.id);
+                        }}
+                        className="text-green-500 font-medium text-1xl"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          try {
+                            Swal.fire({
+                              title: "Hapus data?",
+                              text: "Data akan dihapus",
+                              icon: "alert",
+                              showCancelButton: true,
+                              confirmButtonColor: "#3085d6",
+                              cancelButtonColor: "#d33",
+                              confirmButtonText: "Ya, Hapus data",
+                            }).then(async (result) => {
+                              if (result.isConfirmed) {
+                                await PredictionService.DeletePredictionById(
+                                  x.id
+                                );
+                                fetchData();
+                                Swal.fire(
+                                  "Berhasil Hapus Data!",
+                                  "Data Terhapus",
+                                  "success"
+                                );
+                              }
+                            });
+                          } catch (error) {
+                            Swal.fire({
+                              title: "Gagal Hapus data!",
+                              text:
+                                "Gagal Hapus! Karena Tidak Ada Koneksi Internet" +
+                                error,
+                              icon: "error",
+                              confirmButtonText: "Ok",
+                            });
+                          }
+                        }}
+                        className="text-red-500 font-medium text-1xl"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {getData.length === 0 && (
+              <h1 className="text-white font-bold text-3xl">Data Kosong</h1>
+            )}
+          </>
+        );
+      };
+
+      const Login = ({ setAuth }) => {
+        const [loginData, setLoginData] = React.useState({
+          username: "",
+          password: "",
+        });
+        const [errorMsg, setErrorMsg] = React.useState("");
+        return (
+          <section className="bg-gray-50 dark:bg-gray-900">
+            <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
+              <div className="w-full bg-white rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
+                <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
+                  <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
+                    Masuk Data History Prediksi
+                  </h1>
+                  <span className="text-red-500">{errorMsg}</span>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await AuthService.Login(loginData);
+                        setAuth(!!TokenService.getToken());
+                      } catch (error) {
+                        setErrorMsg(error?.response?.data?.msg);
+                        console.log(error);
+                      }
+                    }}
+                    className="space-y-4 md:space-y-6"
+                    action="#"
+                  >
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Username
+                      </label>
+                      <input
+                        onChange={(e) =>
+                          setLoginData((prev) => ({
+                            ...prev,
+                            username: e.target.value,
+                          }))
+                        }
+                        value={loginData.username}
+                        type="text"
+                        name="username"
+                        id="username"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        placeholder="username"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="password"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Password
+                      </label>
+                      <input
+                        onChange={(e) =>
+                          setLoginData((prev) => ({
+                            ...prev,
+                            password: e.target.value,
+                          }))
+                        }
+                        value={loginData.password}
+                        type="password"
+                        name="password"
+                        id="password"
+                        placeholder="••••••••"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full text-white bg-blue-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+                    >
+                      Masuk
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      };
+
+      const Home = () => {
+        return (
+          <>
+            {!!TokenService.getToken() ? (
+              <div className="flex relative gap-y-4 w-full p-8 flex-col">
+                <h1 className="text-3xl font-bold text-white">
+                  Data History Prediksi Perpanjangan Kontrak Karyawan
+                </h1>
+
+                <Table />
+              </div>
+            ) : (
+              <Login />
+            )}
+          </>
+        );
+      };
+
+      ApiService.init("http://localhost:5000");
+
+      if (!!TokenService.getToken()) {
+        ApiService.setHeader();
+        ApiService.mount401Interceptor();
+      } else {
+        ApiService.removeHeader();
+        ApiService.unmount401Interceptor();
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      const element = <Home />;
+      root.render(element);
+    </script>
+  </body>
+</html>
