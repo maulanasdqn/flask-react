@@ -129,13 +129,14 @@
           }
         },
 
-        UpdatePredictionById: async (prediction_id) => {
+        UpdatePredictionById: async (payload) => {
           const requestData = {
             method: "put",
             headers: {
               "Content-Type": "application/json; charset=utf-8",
             },
-            url: `item/${prediction_id}`,
+            url: `item/${payload.id}`,
+            data: payload,
           };
           try {
             const res = await ApiService.customRequest(requestData);
@@ -191,6 +192,7 @@
         isView,
       }) => {
         const [predictionData, setPredictionData] = React.useState({
+          id: "",
           nama: "",
           jenis_kelamin: "L",
           tempat_lahir: "",
@@ -210,7 +212,7 @@
           if (isEdit) {
             setPredictionData(predictionDetailData);
           }
-        }, []);
+        }, [isEdit, predictionDetailData]);
 
         return (
           <>
@@ -229,9 +231,9 @@
                         try {
                           e.preventDefault();
                           isEdit
-                            ? PredictionService.UpdatePredictionById(
-                                predictionData
-                              )
+                            ? PredictionService.UpdatePredictionById({
+                                ...predictionData,
+                              })
                             : PredictionService.CreatePrediction(
                                 predictionData
                               );
@@ -646,7 +648,6 @@
                         <button
                           onClick={() => {
                             setModalShow(!isModalShow);
-                            setPredictionData({});
                           }}
                           type="button"
                           className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
@@ -670,6 +671,7 @@
         const [isView, setIsView] = React.useState(false);
         const [repopulateData, setRepopulate] = React.useState(false);
         const [predictionDetailData, setPredictionDetailData] = React.useState({
+          id: "",
           nama: "",
           jenis_kelamin: "",
           tempat_lahir: "",
@@ -687,7 +689,6 @@
 
         const fetchData = async () => {
           const res = await PredictionService.GetPrediction();
-          await PredictionService.GetPredictionById(23);
           setData(await res);
         };
 
@@ -857,6 +858,7 @@
                         onClick={() => {
                           setModal(!getModal);
                           setIsView(true);
+                          setIsEdit(false);
                           fetchDetailData(x.id);
                         }}
                         className="text-yellow-500 font-medium text-1xl"
@@ -867,6 +869,7 @@
                         onClick={() => {
                           setModal(!getModal);
                           setIsEdit(true);
+                          setIsView(false);
                           fetchDetailData(x.id);
                         }}
                         className="text-green-500 font-medium text-1xl"
@@ -1035,10 +1038,8 @@
 
       if (!!TokenService.getToken()) {
         ApiService.setHeader();
-        ApiService.mount401Interceptor();
       } else {
         ApiService.removeHeader();
-        ApiService.unmount401Interceptor();
       }
 
       const root = ReactDOM.createRoot(document.getElementById("root"));

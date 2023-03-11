@@ -1,4 +1,5 @@
 from array import array
+import datetime
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
@@ -24,7 +25,7 @@ CORS(app)
 
 
 
-app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://admin:admin@172.20.0.2:3306/skripsi_silvi"
+app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://admin:admin@172.18.0.2:3306/skripsi_silvi"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -59,7 +60,7 @@ def login():
     if username != "admin" or password != "admin":
         return jsonify({"msg": "Tidak bisa login karena salah"}), 401
 
-    access_token = create_access_token(identity=username)
+    access_token = create_access_token(identity=username, expires_delta=datetime.timedelta(days=15))
     return jsonify(access_token=access_token)
 
 @app.route("/", methods=["GET"])
