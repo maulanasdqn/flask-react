@@ -90,6 +90,12 @@ def delete(item_id = None):
 def table(item_id = None):
    return DataPrediksi.fs_get_delete_put_post(item_id)
 
+@app.route("/item/<item_id>", methods=["PUT"])
+@app.route("/items")
+@jwt_required()
+def edit(item_id = None):
+   return DataPrediksi.fs_get_delete_put_post(item_id)
+
 
 @app.route("/predict", methods=["POST"])
 @jwt_required()

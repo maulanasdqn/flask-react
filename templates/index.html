@@ -41,23 +41,9 @@
         removeToken() {
           localStorage.removeItem(TOKEN_KEY);
         },
-
-        getRefreshToken() {
-          return localStorage.getItem(REFRESH_TOKEN_KEY);
-        },
-
-        saveRefreshToken(refreshToken) {
-          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-        },
-
-        removeRefreshToken() {
-          localStorage.removeItem(REFRESH_TOKEN_KEY);
-        },
       };
 
       const ApiService = {
-        _401interceptor: null || 0,
-
         init(baseURL) {
           axios.defaults.baseURL = baseURL;
         },
@@ -74,37 +60,6 @@
 
         customRequest(data) {
           return axios(data);
-        },
-
-        mount401Interceptor() {
-          this._401interceptor = axios.interceptors.response.use(
-            (response) => {
-              return response;
-            },
-            async (error) => {
-              if (
-                error.request.status === 401 ||
-                error.request.status === 422
-              ) {
-                if (error.config.url.includes("auth/login")) {
-                  AuthService.Logout();
-                  throw error;
-                } else {
-                  try {
-                    AuthService.Logout();
-                  } catch (e) {
-                    AuthService.Logout();
-                    throw error;
-                  }
-                }
-              }
-              throw error;
-            }
-          );
-        },
-
-        unmount401Interceptor() {
-          axios.interceptors.response.eject(this._401interceptor);
         },
       };
 
@@ -135,7 +90,6 @@
         Logout: () => {
           ApiService.removeHeader();
           TokenService.removeToken();
-          TokenService.removeRefreshToken();
           window.location.reload();
         },
       };
@@ -161,6 +115,23 @@
         GetPredictionById: async (prediction_id) => {
           const requestData = {
             method: "get",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            url: `item/${prediction_id}`,
+          };
+          try {
+            const res = await ApiService.customRequest(requestData);
+            ApiService.setHeader();
+            return res.data;
+          } catch (error) {
+            console.log(error);
+          }
+        },
+
+        UpdatePredictionById: async (prediction_id) => {
+          const requestData = {
+            method: "put",
             headers: {
               "Content-Type": "application/json; charset=utf-8",
             },
@@ -208,13 +179,6 @@
           } catch (error) {
             console.log(error);
           }
-        },
-
-        Logout: () => {
-          ApiService.removeHeader();
-          TokenService.removeToken();
-          TokenService.removeRefreshToken();
-          window.location.reload();
         },
       };
 
@@ -264,10 +228,18 @@
                       onSubmit={(e) => {
                         try {
                           e.preventDefault();
-                          PredictionService.CreatePrediction(predictionData);
+                          isEdit
+                            ? PredictionService.UpdatePredictionById(
+                                predictionData
+                              )
+                            : PredictionService.CreatePrediction(
+                                predictionData
+                              );
                           Swal.fire({
                             title: "Berhasil!",
-                            text: "Do you want to continue",
+                            text: isEdit
+                              ? "Berhasil Update Data"
+                              : "Berhasil Tambah Data",
                             icon: "success",
                             confirmButtonText: "Ok",
                           });
@@ -292,7 +264,7 @@
                                 : "Tambah Data Prediksi Karyawan"}
                             </h3>
                             <div className="mt-8 w-full">
-                              {isEdit && (
+                              {!isEdit && isView && (
                                 <div
                                   id="divcontents"
                                   className="flex flex-col gap-y-4"
@@ -634,7 +606,7 @@
                         </div>
                       </div>
                       <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                        {isEdit ? (
+                        {!isEdit && isView ? (
                           <button
                             onClick={() => {
                               const content =
@@ -652,19 +624,30 @@
                             type="button"
                             className="inline-flex w-full justify-center rounded-md border border-transparent bg-green-400 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
                           >
-                            {isEdit ? "Print Data" : "Tambah Prediksi Data"}
+                            {!isEdit && isView
+                              ? "Print Data"
+                              : isEdit
+                              ? "Edit Prediksi Data"
+                              : "Tambah Prediksi Data"}
                           </button>
                         ) : (
                           <button
                             type="submit"
                             className="inline-flex w-full justify-center rounded-md border border-transparent bg-green-400 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
                           >
-                            {isEdit ? "Print Data" : "Tambah Prediksi Data"}
+                            {!isEdit && isView
+                              ? "Print Data"
+                              : isEdit
+                              ? "Edit Prediksi Data"
+                              : "Tambah Prediksi Data"}
                           </button>
                         )}
 
                         <button
-                          onClick={() => setModalShow(!isModalShow)}
+                          onClick={() => {
+                            setModalShow(!isModalShow);
+                            setPredictionData({});
+                          }}
                           type="button"
                           className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                         >
