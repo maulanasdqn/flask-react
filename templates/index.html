@@ -178,7 +178,12 @@
             ApiService.setHeader();
             return res.data;
           } catch (error) {
-            console.log(error);
+            Swal.fire({
+              title: "Telah terjadi error!",
+              text: error,
+              icon: "error",
+              confirmButtonText: "Ok",
+            });
           }
         },
       };
@@ -355,6 +360,7 @@
                                             jenis_kelamin: e.target.value,
                                           }))
                                         }
+                                        defaultValue="L"
                                         value={predictionData.jenis_kelamin}
                                         type="text"
                                         name="jenis kelamin"
